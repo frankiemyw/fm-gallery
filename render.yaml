@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: fm-gallery
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    domains:
+      - fmgallery.co
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATA_DIR
+        value: /var/data/data
+      - key: MEDIA_DIR
+        value: /var/data/media
+    disk:
+      name: fm-gallery-data
+      mountPath: /var/data
+      sizeGB: 5

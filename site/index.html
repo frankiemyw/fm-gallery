@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FM Gallery</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="FM Gallery home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>
+            <strong>FM Gallery</strong>
+            <small>Images, paintings, and short videos</small>
+          </span>
+        </a>
+
+        <div class="topbar-actions">
+          <span class="account-pill" id="accountPill" hidden></span>
+          <button class="text-button" id="uploadButton" type="button" hidden>Upload</button>
+          <button class="text-button" id="chatsButton" type="button" hidden>Chats</button>
+          <button class="text-button" id="signInButton" type="button">Sign in</button>
+          <button class="primary-button" id="signUpButton" type="button">Create account</button>
+          <button class="text-button" id="signOutButton" type="button" hidden>Sign out</button>
+          <button class="icon-button" id="refreshButton" type="button" title="Refresh gallery" aria-label="Refresh gallery">
+            &#8635;
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="gallery-console" aria-label="Gallery overview">
+          <aside class="library-panel" aria-label="Library summary">
+            <p class="eyebrow">Collection</p>
+            <h1>FM creative gallery</h1>
+
+            <dl class="stats-grid">
+              <div>
+                <dt>Total</dt>
+                <dd id="totalCount">0</dd>
+              </div>
+              <div>
+                <dt>Paintings</dt>
+                <dd id="paintingCount">0</dd>
+              </div>
+              <div>
+                <dt>Videos</dt>
+                <dd id="videoCount">0</dd>
+              </div>
+            </dl>
+
+            <div class="account-panel" id="accountPanel" hidden>
+              <p class="eyebrow">Account</p>
+              <strong id="accountName"></strong>
+              <span id="accountMeta"></span>
+            </div>
+
+            <div class="control-stack">
+              <label class="search-field">
+                <span>Search</span>
+                <input id="searchInput" type="search" placeholder="Title, artist, filename" autocomplete="off">
+              </label>
+
+              <label class="select-field">
+                <span>Sort</span>
+                <select id="sortSelect">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="az">A-Z</option>
+                </select>
+              </label>
+            </div>
+          </aside>
+
+          <section class="featured-panel" aria-label="Featured artwork">
+            <div class="featured-copy">
+              <p class="eyebrow">Now showing</p>
+              <h2 id="featuredTitle">Gallery ready</h2>
+              <p id="featuredMeta">Your collection will appear here.</p>
+            </div>
+            <button class="featured-media" id="featuredMedia" type="button" aria-label="Open featured artwork">
+              <span class="empty-frame">No media yet</span>
+            </button>
+          </section>
+        </section>
+
+        <section class="toolbar" aria-label="Gallery filters">
+          <div class="segmented-control" role="group" aria-label="Filter artworks">
+            <button type="button" class="filter-button is-active" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" class="filter-button" data-filter="painting" aria-pressed="false">Paintings</button>
+            <button type="button" class="filter-button" data-filter="video" aria-pressed="false">Videos</button>
+            <button type="button" class="filter-button" id="mineFilterButton" data-filter="mine" aria-pressed="false" hidden>Mine</button>
+          </div>
+          <p id="resultCount">0 works</p>
+        </section>
+
+        <section class="collection-grid" id="collectionGrid" aria-label="Artwork grid"></section>
+
+        <section class="empty-state" id="emptyState">
+          <p class="eyebrow">Library</p>
+          <h2>No works published yet</h2>
+          <p>Sign in to upload pictures, paintings, creative images, or short videos.</p>
+        </section>
+      </main>
+    </div>
+
+    <div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Artwork viewer">
+      <div class="viewer-surface">
+        <button class="icon-button viewer-close" id="viewerClose" type="button" title="Close viewer" aria-label="Close viewer">
+          &times;
+        </button>
+        <button class="icon-button viewer-nav viewer-prev" id="viewerPrev" type="button" title="Previous artwork" aria-label="Previous artwork">
+          &lsaquo;
+        </button>
+        <div class="viewer-layout">
+          <div class="viewer-media" id="viewerMedia"></div>
+          <aside class="comments-panel" aria-label="Artwork review panel">
+            <div class="viewer-caption">
+              <strong id="viewerTitle"></strong>
+              <span id="viewerMeta"></span>
+            </div>
+
+            <div class="review-actions">
+              <button class="text-button like-button" id="likeButton" type="button">Like</button>
+              <button class="text-button" id="chatAuthorButton" type="button" hidden>Chat with author</button>
+            </div>
+
+            <form class="owner-tools" id="ownerTools" hidden>
+              <label>
+                <span>Title</span>
+                <input id="ownerTitleInput" name="title" maxlength="100">
+              </label>
+              <div class="owner-actions">
+                <button class="primary-button" type="submit">Save</button>
+                <button class="danger-button" id="deleteArtworkButton" type="button">Delete</button>
+              </div>
+            </form>
+
+            <div class="comment-list" id="commentList"></div>
+
+            <form class="comment-form" id="commentForm" hidden>
+              <label>
+                <span>Comment</span>
+                <textarea id="commentBody" maxlength="500" rows="3"></textarea>
+              </label>
+              <button class="primary-button" type="submit">Post comment</button>
+            </form>
+
+            <p class="comment-prompt" id="commentPrompt">Sign in to comment.</p>
+          </aside>
+        </div>
+        <button class="icon-button viewer-nav viewer-next" id="viewerNext" type="button" title="Next artwork" aria-label="Next artwork">
+          &rsaquo;
+        </button>
+      </div>
+    </div>
+
+    <div class="modal" id="authModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="authTitle">
+      <form class="modal-surface" id="authForm">
+        <button class="icon-button modal-close" id="authClose" type="button" title="Close" aria-label="Close">
+          &times;
+        </button>
+        <p class="eyebrow">Account</p>
+        <h2 id="authTitle">Sign in</h2>
+        <label id="nameField">
+          <span>Name</span>
+          <input id="authName" name="name" autocomplete="name">
+        </label>
+        <label>
+          <span>Email</span>
+          <input id="authEmail" name="email" type="email" autocomplete="email" required>
+        </label>
+        <label>
+          <span>Password</span>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="6" required>
+        </label>
+        <p class="form-error" id="authError"></p>
+        <button class="primary-button" id="authSubmit" type="submit">Sign in</button>
+        <button class="text-button" id="authSwitch" type="button">Create an account</button>
+      </form>
+    </div>
+
+    <div class="modal" id="uploadModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="uploadTitle">
+      <form class="modal-surface" id="uploadForm">
+        <button class="icon-button modal-close" id="uploadClose" type="button" title="Close" aria-label="Close">
+          &times;
+        </button>
+        <p class="eyebrow">Artwork</p>
+        <h2 id="uploadTitle">Upload work</h2>
+        <label>
+          <span>Title</span>
+          <input id="uploadTitleInput" name="title" maxlength="100">
+        </label>
+        <label>
+          <span>Type</span>
+          <select id="uploadType" name="type">
+            <option value="painting">Picture, painting, or creative image</option>
+            <option value="video">Short video</option>
+          </select>
+        </label>
+        <label>
+          <span>File</span>
+          <input id="uploadFile" name="file" type="file" accept="image/*,video/*" required>
+        </label>
+        <p class="form-error" id="uploadError"></p>
+        <button class="primary-button" type="submit">Publish</button>
+      </form>
+    </div>
+
+    <div class="modal" id="chatModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="chatTitle">
+      <section class="modal-surface chat-modal-surface">
+        <button class="icon-button modal-close" id="chatClose" type="button" title="Close" aria-label="Close">
+          &times;
+        </button>
+        <p class="eyebrow">Chat</p>
+        <h2 id="chatTitle">Your chats</h2>
+        <div class="chat-messages" id="chatMessages"></div>
+        <form class="chat-form" id="chatForm" hidden>
+          <label>
+            <span>Message</span>
+            <textarea id="chatBody" maxlength="1000" rows="3"></textarea>
+          </label>
+          <button class="primary-button" type="submit">Send message</button>
+        </form>
+        <p class="comment-prompt" id="chatPrompt">Open an artwork to chat with its author.</p>
+      </section>
+    </div>
+
+    <div class="toast" id="statusMessage" role="status" aria-live="polite"></div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
