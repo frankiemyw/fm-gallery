@@ -144,7 +144,9 @@ async function parseJsonResponse(response) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Something went wrong.");
+    const error = new Error(data.error || "Something went wrong.");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -646,6 +648,13 @@ elements.authForm.addEventListener("submit", async (event) => {
     showStatus(state.authMode === "signup" ? "Account created." : "Signed in.");
     await loadGallery();
   } catch (error) {
+    if (state.authMode === "signin" && error.status === 404) {
+      openAuth("signup");
+      elements.authError.textContent = "Add your name, then create this account.";
+      elements.authName.focus();
+      return;
+    }
+
     elements.authError.textContent = error.message;
   }
 });
