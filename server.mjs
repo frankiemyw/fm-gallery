@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = path.join(ROOT_DIR, "site");
 const BUNDLED_MEDIA_DIR = path.join(ROOT_DIR, "media");
+const MEDIA_METADATA_FILE = path.join(BUNDLED_MEDIA_DIR, "metadata.json");
 const FALLBACK_MEDIA_DIR = path.join(ROOT_DIR, "media");
 const FALLBACK_DATA_DIR = path.join(ROOT_DIR, "data");
 
@@ -54,6 +55,7 @@ const MIME_TYPES = new Map([
 ]);
 
 let bundledMediaSeeded = false;
+let archiveMetadataCache = null;
 let storageFallbackApplied = false;
 
 const DEFAULT_DB = {
@@ -88,11 +90,16 @@ function mediaUrl(relativePath) {
 
 function titleFromFilename(filename) {
   const base = path.basename(filename, path.extname(filename));
-  return base
+  const cleanBase = base
+    .replace(/^\d{10,}-[a-f0-9]{6,}-/i, "")
+    .replace(/^chatgpt[-_\s]*image[-_\s]*/i, "")
+    .replace(/[-_\s]*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[-_\s]*\d{1,2}[-_\s]*\d{4}[-_\s]*at[-_\s]*\d{1,2}[-_\s]*\d{2}[-_\s]*\d{2}[-_\s]*(am|pm)$/i, "")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/\b\w/g, (character) => character.toUpperCase()) || "Untitled";
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
+  return cleanBase || "Untitled work";
 }
 
 function safeJoin(baseDir, requestPath) {
@@ -131,13 +138,22 @@ function parseCookies(cookieHeader = "") {
     }));
 }
 
-function sessionCookie(sessionId) {
-  const maxAge = SESSION_DAYS * 24 * 60 * 60;
-  return `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+function isSecureRequest(request) {
+  const forwardedProto = String(request.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const forwarded = String(request.headers.forwarded || "");
+
+  return forwardedProto === "https" || forwarded.toLowerCase().includes("proto=https");
 }
 
-function clearSessionCookie() {
-  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+function sessionCookie(sessionId, request) {
+  const maxAge = SESSION_DAYS * 24 * 60 * 60;
+  const secure = isSecureRequest(request) ? "; Secure" : "";
+  return `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure}`;
+}
+
+function clearSessionCookie(request) {
+  const secure = isSecureRequest(request) ? "; Secure" : "";
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure}`;
 }
 
 function hashPassword(password) {
@@ -169,6 +185,10 @@ function normalizeName(name) {
 
 function normalizeDescription(description) {
   return String(description || "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeMediaKey(value) {
+  return String(value || "").replace(/\\/g, "/");
 }
 
 function slugify(value) {
@@ -279,6 +299,35 @@ async function seedBundledMedia() {
     copyMissingFiles(path.join(BUNDLED_MEDIA_DIR, "videos"), path.join(MEDIA_DIR, "videos")),
     copyMissingFiles(path.join(BUNDLED_MEDIA_DIR, "posters"), path.join(MEDIA_DIR, "posters"))
   ]);
+}
+
+async function loadArchiveMetadata() {
+  if (archiveMetadataCache) {
+    return archiveMetadataCache;
+  }
+
+  archiveMetadataCache = new Map();
+
+  try {
+    const raw = await fs.readFile(MEDIA_METADATA_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+
+    for (const [key, value] of Object.entries(parsed)) {
+      const title = normalizeName(value?.title);
+      const description = normalizeDescription(value?.description);
+
+      archiveMetadataCache.set(normalizeMediaKey(key), {
+        title: title ? title.slice(0, 100) : "",
+        description: description.slice(0, 600)
+      });
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.warn(`Archive metadata could not be loaded: ${error.message}`);
+    }
+  }
+
+  return archiveMetadataCache;
 }
 
 async function loadDb() {
@@ -540,6 +589,7 @@ async function uploadedArtwork(record, db, requestUser) {
 async function listGalleryItems(db, requestUser = null) {
   const uploadedItems = [];
   const uploadedSources = new Set();
+  const archiveMetadata = await loadArchiveMetadata();
 
   for (const record of db.artworks) {
     const absolutePath = safeJoin(MEDIA_DIR, record.storagePath || "");
@@ -560,6 +610,7 @@ async function listGalleryItems(db, requestUser = null) {
   const paintings = await Promise.all(paintingFiles.map(async (relativePath) => {
     const sourcePath = path.join("paintings", relativePath);
     const src = mediaUrl(sourcePath);
+    const metadata = archiveMetadata.get(normalizeMediaKey(sourcePath)) || {};
 
     if (uploadedSources.has(src)) {
       return null;
@@ -572,8 +623,8 @@ async function listGalleryItems(db, requestUser = null) {
     return {
       id,
       type: "painting",
-      title: titleFromFilename(relativePath),
-      description: "",
+      title: metadata.title || titleFromFilename(relativePath),
+      description: metadata.description || "",
       filename: path.basename(relativePath),
       src,
       poster: src,
@@ -594,6 +645,7 @@ async function listGalleryItems(db, requestUser = null) {
   const videos = await Promise.all(videoFiles.map(async (relativePath) => {
     const sourcePath = path.join("videos", relativePath);
     const src = mediaUrl(sourcePath);
+    const metadata = archiveMetadata.get(normalizeMediaKey(sourcePath)) || {};
 
     if (uploadedSources.has(src)) {
       return null;
@@ -606,8 +658,8 @@ async function listGalleryItems(db, requestUser = null) {
     return {
       id,
       type: "video",
-      title: titleFromFilename(relativePath),
-      description: "",
+      title: metadata.title || titleFromFilename(relativePath),
+      description: metadata.description || "",
       filename: path.basename(relativePath),
       src,
       poster: await findVideoPoster(relativePath),
@@ -746,7 +798,7 @@ async function handleSignup(request, response) {
   const session = createSession(db, user.id);
   await saveDb(db);
 
-  sendJson(response, 201, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(session.id) });
+  sendJson(response, 201, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(session.id, request) });
 }
 
 async function handleSignin(request, response) {
@@ -761,15 +813,20 @@ async function handleSignin(request, response) {
   const db = await loadDb();
   const user = db.users.find((candidate) => candidate.email === fields.email);
 
-  if (!user || !verifyPassword(fields.password, user.passwordHash)) {
-    sendJson(response, 401, { error: "Email or password is incorrect." });
+  if (!user) {
+    sendJson(response, 404, { error: "No account found for this email. Create an account on the live site first." });
+    return;
+  }
+
+  if (!verifyPassword(fields.password, user.passwordHash)) {
+    sendJson(response, 401, { error: "Password is incorrect." });
     return;
   }
 
   const session = createSession(db, user.id);
   await saveDb(db);
 
-  sendJson(response, 200, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(session.id) });
+  sendJson(response, 200, { user: publicUser(user) }, { "Set-Cookie": sessionCookie(session.id, request) });
 }
 
 async function handleSignout(request, response) {
@@ -782,7 +839,7 @@ async function handleSignout(request, response) {
     await saveDb(db);
   }
 
-  sendJson(response, 200, { ok: true }, { "Set-Cookie": clearSessionCookie() });
+  sendJson(response, 200, { ok: true }, { "Set-Cookie": clearSessionCookie(request) });
 }
 
 async function handleUpload(request, response) {

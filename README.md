@@ -27,6 +27,8 @@ http://localhost:4177
 
 Account data, uploaded artwork records, and comments are stored locally in `data/db.json`.
 
+Accounts created on `localhost` are separate from accounts created on the live website. After publishing, create or sign in with an account on `fmgallery.co`.
+
 ## Going Live On `fmgallery.co`
 
 The site should be hosted as a Node.js app with permanent storage, because visitor accounts, uploaded media, likes, comments, and chats are saved by the server.
