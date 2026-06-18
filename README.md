@@ -55,6 +55,15 @@ The domain currently uses GoDaddy-style nameservers, so the DNS records need to 
 
 Plain Vercel serverless hosting is not enough for this version by itself, because local uploads and `data/db.json` are not permanent there. Vercel can still be used after moving the database to Postgres/Neon and uploaded files to Blob storage.
 
+If Render shows `EACCES: permission denied, mkdir '/var/data'`, the web service is missing its persistent disk. In Render, open the `fm-gallery` service, go to **Disks**, and add a disk with:
+
+```text
+Mount path: /var/data
+Size: 5 GB
+```
+
+Then redeploy the service. The app can fall back to temporary local storage if the disk is missing, but accounts and uploads are only preserved across restarts when the disk is mounted.
+
 ## Folder-Based Media
 
 You can still add files manually:

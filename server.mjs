@@ -13,14 +13,16 @@ import { fileURLToPath } from "node:url";
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = path.join(ROOT_DIR, "site");
 const BUNDLED_MEDIA_DIR = path.join(ROOT_DIR, "media");
+const FALLBACK_MEDIA_DIR = path.join(ROOT_DIR, "media");
+const FALLBACK_DATA_DIR = path.join(ROOT_DIR, "data");
 
 function projectPath(value, fallback) {
   return value ? path.resolve(ROOT_DIR, value) : fallback;
 }
 
-const MEDIA_DIR = projectPath(process.env.MEDIA_DIR, path.join(ROOT_DIR, "media"));
-const DATA_DIR = projectPath(process.env.DATA_DIR, path.join(ROOT_DIR, "data"));
-const DB_FILE = projectPath(process.env.DB_FILE, path.join(DATA_DIR, "db.json"));
+let MEDIA_DIR = projectPath(process.env.MEDIA_DIR, FALLBACK_MEDIA_DIR);
+let DATA_DIR = projectPath(process.env.DATA_DIR, FALLBACK_DATA_DIR);
+let DB_FILE = projectPath(process.env.DB_FILE, path.join(DATA_DIR, "db.json"));
 const PORT = Number(process.env.PORT || 4177);
 
 const SESSION_COOKIE = "ai_gallery_session";
@@ -52,6 +54,7 @@ const MIME_TYPES = new Map([
 ]);
 
 let bundledMediaSeeded = false;
+let storageFallbackApplied = false;
 
 const DEFAULT_DB = {
   artworks: [],
@@ -185,14 +188,48 @@ function likedByUser(db, artworkId, user) {
 }
 
 async function ensureStorage() {
+  try {
+    await ensureStorageDirectories();
+  } catch (error) {
+    if (!canUseFallbackStorage(error)) {
+      throw error;
+    }
+
+    useFallbackStorage(error);
+    await ensureStorageDirectories();
+  }
+
+  await seedBundledMedia();
+}
+
+async function ensureStorageDirectories() {
   await Promise.all([
     fs.mkdir(DATA_DIR, { recursive: true }),
     fs.mkdir(path.join(MEDIA_DIR, "paintings"), { recursive: true }),
     fs.mkdir(path.join(MEDIA_DIR, "videos"), { recursive: true }),
     fs.mkdir(path.join(MEDIA_DIR, "posters"), { recursive: true })
   ]);
+}
 
-  await seedBundledMedia();
+function canUseFallbackStorage(error) {
+  if (storageFallbackApplied) {
+    return false;
+  }
+
+  if (!["EACCES", "EROFS", "EPERM"].includes(error?.code)) {
+    return false;
+  }
+
+  return path.resolve(DATA_DIR) !== path.resolve(FALLBACK_DATA_DIR) ||
+    path.resolve(MEDIA_DIR) !== path.resolve(FALLBACK_MEDIA_DIR);
+}
+
+function useFallbackStorage(error) {
+  storageFallbackApplied = true;
+  MEDIA_DIR = FALLBACK_MEDIA_DIR;
+  DATA_DIR = FALLBACK_DATA_DIR;
+  DB_FILE = path.join(DATA_DIR, "db.json");
+  console.warn(`Persistent storage is not writable (${error.code}). Falling back to local app storage.`);
 }
 
 async function copyMissingFiles(sourceDir, targetDir) {
