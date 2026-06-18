@@ -51,6 +51,7 @@ const elements = {
   likeButton: document.querySelector("#likeButton"),
   mineFilterButton: document.querySelector("#mineFilterButton"),
   nameField: document.querySelector("#nameField"),
+  ownerDescriptionInput: document.querySelector("#ownerDescriptionInput"),
   ownerTitleInput: document.querySelector("#ownerTitleInput"),
   ownerTools: document.querySelector("#ownerTools"),
   paintingCount: document.querySelector("#paintingCount"),
@@ -65,6 +66,7 @@ const elements = {
   totalCount: document.querySelector("#totalCount"),
   uploadButton: document.querySelector("#uploadButton"),
   uploadClose: document.querySelector("#uploadClose"),
+  uploadDescriptionInput: document.querySelector("#uploadDescriptionInput"),
   uploadError: document.querySelector("#uploadError"),
   uploadFile: document.querySelector("#uploadFile"),
   uploadForm: document.querySelector("#uploadForm"),
@@ -74,6 +76,7 @@ const elements = {
   videoCount: document.querySelector("#videoCount"),
   viewer: document.querySelector("#viewer"),
   viewerClose: document.querySelector("#viewerClose"),
+  viewerDescription: document.querySelector("#viewerDescription"),
   viewerMedia: document.querySelector("#viewerMedia"),
   viewerMeta: document.querySelector("#viewerMeta"),
   viewerNext: document.querySelector("#viewerNext"),
@@ -121,6 +124,20 @@ function itemMeta(item) {
   const label = item.type === "video" ? "Short video" : "Creative image";
   const artist = item.ownerName || "Studio Archive";
   return `${label} - ${artist} - ${formatDate(item.createdAt)}`;
+}
+
+function itemDescription(item) {
+  return String(item?.description || "").trim();
+}
+
+function descriptionPreview(item) {
+  const description = itemDescription(item);
+
+  if (!description) {
+    return "";
+  }
+
+  return description.length > 118 ? `${description.slice(0, 115).trim()}...` : description;
 }
 
 async function parseJsonResponse(response) {
@@ -216,6 +233,7 @@ function applyFilters() {
       (state.activeFilter === "mine" && state.user && item.ownerId === state.user.id);
     const matchesSearch = !query ||
       item.title.toLowerCase().includes(query) ||
+      itemDescription(item).toLowerCase().includes(query) ||
       item.filename.toLowerCase().includes(query) ||
       String(item.ownerName || "").toLowerCase().includes(query);
     return matchesFilter && matchesSearch;
@@ -298,6 +316,7 @@ function renderGrid() {
         </span>
         <span class="art-info">
           <strong>${escapeHtml(item.title)}</strong>
+          ${descriptionPreview(item) ? `<p>${escapeHtml(descriptionPreview(item))}</p>` : ""}
           <span>${escapeHtml(itemMeta(item))}</span>
           <small>${item.likeCount} ${item.likeCount === 1 ? "like" : "likes"} - ${item.commentCount} ${item.commentCount === 1 ? "comment" : "comments"}</small>
         </span>
@@ -324,6 +343,7 @@ function renderOwnerTools(item) {
 
   elements.ownerTools.hidden = false;
   elements.ownerTitleInput.value = item.title;
+  elements.ownerDescriptionInput.value = itemDescription(item);
 }
 
 function renderReviewActions(item) {
@@ -361,6 +381,8 @@ function renderComments() {
 function renderViewerDetails(item) {
   elements.viewerTitle.textContent = item.title;
   elements.viewerMeta.textContent = itemMeta(item);
+  elements.viewerDescription.textContent = itemDescription(item) || "No description yet.";
+  elements.viewerDescription.classList.toggle("is-empty", !itemDescription(item));
   renderReviewActions(item);
   renderOwnerTools(item);
   renderComments();
@@ -634,6 +656,7 @@ elements.uploadForm.addEventListener("submit", async (event) => {
 
   const formData = new FormData();
   formData.set("title", elements.uploadTitleInput.value);
+  formData.set("description", elements.uploadDescriptionInput.value);
   formData.set("type", elements.uploadType.value);
 
   if (elements.uploadFile.files[0]) {
@@ -747,7 +770,10 @@ elements.ownerTools.addEventListener("submit", async (event) => {
   try {
     await api(`/api/artworks/${encodeURIComponent(item.id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ title: elements.ownerTitleInput.value })
+      body: JSON.stringify({
+        description: elements.ownerDescriptionInput.value,
+        title: elements.ownerTitleInput.value
+      })
     });
     showStatus("Artwork updated.");
     await loadGallery();

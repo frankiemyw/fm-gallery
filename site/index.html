@@ -120,6 +120,7 @@
             <div class="viewer-caption">
               <strong id="viewerTitle"></strong>
               <span id="viewerMeta"></span>
+              <p id="viewerDescription"></p>
             </div>
 
             <div class="review-actions">
@@ -131,6 +132,10 @@
               <label>
                 <span>Title</span>
                 <input id="ownerTitleInput" name="title" maxlength="100">
+              </label>
+              <label>
+                <span>Description</span>
+                <textarea id="ownerDescriptionInput" name="description" maxlength="600" rows="4" placeholder="Add the story, prompt, concept, or notes behind this work."></textarea>
               </label>
               <div class="owner-actions">
                 <button class="primary-button" type="submit">Save</button>
@@ -192,6 +197,10 @@
         <label>
           <span>Title</span>
           <input id="uploadTitleInput" name="title" maxlength="100">
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea id="uploadDescriptionInput" name="description" maxlength="600" rows="4" placeholder="Optional: describe the idea, prompt, mood, or process."></textarea>
         </label>
         <label>
           <span>Type</span>

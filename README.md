@@ -20,7 +20,7 @@ http://localhost:4177
 
 - Create an account from the top-right button.
 - Sign in to upload pictures, paintings, creative images, or short videos.
-- Open one of your own works to rename or delete it.
+- Open one of your own works to edit its title and description, or delete it.
 - Signed-in visitors can like and comment on any visible work.
 - Signed-in visitors can chat directly with the author of an uploaded work.
 - Everyone can view the public gallery.

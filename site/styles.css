@@ -532,7 +532,7 @@ textarea {
 .art-info {
   display: grid;
   gap: 5px;
-  min-height: 94px;
+  min-height: 118px;
   padding: 14px;
 }
 
@@ -544,10 +544,25 @@ textarea {
 }
 
 .art-info span,
+.art-info p,
 .art-info small {
   color: var(--muted);
-  font-size: 0.78rem;
   font-weight: 700;
+}
+
+.art-info p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.art-info span,
+.art-info small {
+  font-size: 0.76rem;
 }
 
 .empty-state {
@@ -642,6 +657,19 @@ textarea {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.viewer-caption p {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.viewer-caption p.is-empty {
+  color: var(--muted);
+  font-style: italic;
 }
 
 .review-actions {

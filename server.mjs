@@ -167,6 +167,10 @@ function normalizeName(name) {
   return String(name || "").trim().replace(/\s+/g, " ");
 }
 
+function normalizeDescription(description) {
+  return String(description || "").trim().replace(/\s+/g, " ");
+}
+
 function slugify(value) {
   return String(value || "")
     .toLowerCase()
@@ -515,6 +519,7 @@ async function uploadedArtwork(record, db, requestUser) {
     id: record.id,
     type: record.type,
     title: record.title,
+    description: record.description || "",
     filename: record.filename,
     src: record.src,
     poster: record.poster || record.src,
@@ -568,6 +573,7 @@ async function listGalleryItems(db, requestUser = null) {
       id,
       type: "painting",
       title: titleFromFilename(relativePath),
+      description: "",
       filename: path.basename(relativePath),
       src,
       poster: src,
@@ -601,6 +607,7 @@ async function listGalleryItems(db, requestUser = null) {
       id,
       type: "video",
       title: titleFromFilename(relativePath),
+      description: "",
       filename: path.basename(relativePath),
       src,
       poster: await findVideoPoster(relativePath),
@@ -815,6 +822,13 @@ async function handleUpload(request, response) {
 
   const folder = type === "video" ? "videos" : "paintings";
   const title = normalizeName(fields.title) || titleFromFilename(file.filename);
+  const description = normalizeDescription(fields.description);
+
+  if (description.length > 600) {
+    sendJson(response, 400, { error: "Use a description up to 600 characters." });
+    return;
+  }
+
   const originalBase = slugify(path.basename(file.filename, extension)) || "ai-work";
   const storedName = `${Date.now()}-${randomBytes(4).toString("hex")}-${originalBase}${extension}`;
   const storagePath = path.join(folder, storedName);
@@ -827,6 +841,7 @@ async function handleUpload(request, response) {
     id: randomBytes(12).toString("hex"),
     type,
     title: title.slice(0, 100),
+    description,
     filename: file.filename,
     src: mediaUrl(storagePath),
     poster: type === "video" ? "" : mediaUrl(storagePath),
@@ -864,14 +879,24 @@ async function handleArtworkUpdate(request, response, artworkId) {
   }
 
   const data = await readJson(request);
+  const hasDescription = Object.prototype.hasOwnProperty.call(data, "description");
   const title = normalizeName(data.title);
+  const description = hasDescription ? normalizeDescription(data.description) : artwork.description || "";
 
   if (title.length < 1 || title.length > 100) {
     sendJson(response, 400, { error: "Use a title between 1 and 100 characters." });
     return;
   }
 
+  if (description.length > 600) {
+    sendJson(response, 400, { error: "Use a description up to 600 characters." });
+    return;
+  }
+
   artwork.title = title;
+  if (hasDescription) {
+    artwork.description = description;
+  }
   artwork.updatedAt = new Date().toISOString();
   await saveDb(db);
 
